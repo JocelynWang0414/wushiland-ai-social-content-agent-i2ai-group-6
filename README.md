@@ -1,29 +1,23 @@
 # Wushiland Weekly Briefs
 
-A staff-facing prototype for planning short-form videos around a selected
-seven-day window in Pittsburgh. [Project scope](PROJECT_SCOPE.md) ·
-[Team board](https://github.com/users/JocelynWang0414/projects/1/views/1)
+Plan up to three ranked short-form videos for a Pittsburgh store week.
+[Project scope](PROJECT_SCOPE.md) · [Team board](https://github.com/users/JocelynWang0414/projects/1/views/1)
 
 ## Run locally
 
-From the repository root, use Python 3.10+ with IANA time zone data
-(including America/New_York). The app uses the Python standard library.
-On Windows, install `tzdata` if Python cannot find the time zone.
+On the `wushiland-weekly-brief-mvp` branch, run `python -m wushiland.web`
+and open [localhost:8000](http://127.0.0.1:8000). Use Python 3.10+ with
+IANA time zone data. Install `tzdata` if Python cannot find America/New_York.
 
-```sh
-python -m wushiland.web
-```
+Set `GEMINI_API_KEY` in the server environment for model drafting. The
+default is `gemini-3.5-flash-lite`. Override it with
+`WUSHILAND_GEMINI_MODEL`. Without a key, the app uses templates.
 
-Open [localhost:8000](http://127.0.0.1:8000). To enable Gemini, set
-`GEMINI_API_KEY` in the server environment before launch. The default is
-`gemini-3.5-flash-lite`. Set `WUSHILAND_GEMINI_MODEL` to override it.
-With no key, the app uses local templates.
+## Run in Colab
 
-## Run in Google Colab
-
-Add the `GEMINI_API_KEY` secret and enable notebook access for Gemini mode.
-Paste this into one cell. It checks out the current MVP branch and binds
-to a free port, so it works alongside an older server on port 8000.
+For model drafting, add `GEMINI_API_KEY` in Colab Secrets and enable
+notebook access. Paste this into one cell. It fetches the current MVP
+branch and starts the app on a free port.
 
 ```python
 import os
@@ -70,76 +64,41 @@ if not port.isdigit():
 output.serve_kernel_port_as_iframe(int(port), height=850)
 ```
 
-## Staff workflow
+## Generate briefs
 
-Choose the first date of a week and select **Generate briefs**. Start with
-April 12, 2027 for Spring Carnival or July 12, 2027 for a hot summer-break
-scenario. The app returns up to three ranked ideas with a hook, concept,
-three script beats, three shots, a suggested Eastern Time posting window,
-rationale, and source links. Open **Agent decisions** to review validation
-feedback and any Gemini API errors. Staff confirm store hours, local menu
-availability, filming consent, and HQ approval before publishing.
+Pick a week start and select **Generate briefs**. Try **April 12, 2027**
+for Spring Carnival or **July 12, 2027** for simulated summer break. Each
+brief includes a hook, concept, script, shots, suggested Eastern Time
+posting window, rationale, and sources. **LLM-assisted**, **Mixed**, and
+**Templates** indicate how much of the output came from Gemini. Open
+**Agent decisions** for review feedback or API errors.
 
-- **LLM-assisted** means Gemini drafted all displayed briefs.
-- **Mixed** means Gemini drafted some briefs and templates filled gaps.
-- **Templates** means no Gemini drafts passed or Gemini was unavailable.
+## How it works
 
-## Implementation
-
-| File | Responsibility |
+| File | Role |
 | --- | --- |
-| `wushiland/web.py` | Loopback HTTP server, date form, input handling, result rendering, and planner selection. |
-| `wushiland/agent.py` | Calendar and seasonal lookups, candidate validation, retry and template fallback, posting-window selection, and ranking. |
-| `wushiland/llm.py` | Gemini native JSON request, brief extraction, and request diagnostics. |
-| `wushiland/brightdata.py` | Saved export lookup, creative cue extraction, and provenance. |
-| `wushiland/data/events.json` | Dated Spring Carnival entries with sources. Add future dates once CMU publishes them. |
-| `wushiland/data/products.json` | Public U.S. menu seed catalog, product profiles, and shot suggestions. |
-| `tests/test_mvp.py` | Calendar, audience, orchestration, and Gemini adapter regression tests. |
+| [web.py](wushiland/web.py) | Date form, local server, and results. |
+| [agent.py](wushiland/agent.py) | Gathers inputs, checks drafts and posting windows, retries once, fills gaps with templates, and ranks by event and seasonal fit. |
+| [llm.py](wushiland/llm.py) | Gemini JSON planning and API diagnostics. |
+| [brightdata.py](wushiland/brightdata.py) | Reads saved exports and extracts creative cues and source links. |
+| [data/](wushiland/data/) | Spring Carnival dates, public U.S. menu, and bundled Bright Data samples. |
 
-The agent sends the selected week, event and catalog records, simulated
-weather, approximate break audience, and allowed formats to Gemini. It
-checks product and event names, distinct formats, script and shot structure,
-suggested dates, and flagged wording. It can request one revision with
-validation feedback, then fills remaining slots with templates. Ranking
-uses event tie-in and seasonal product fit. Human review still covers
-creative plausibility and brand claims.
+The calendar adds National Tartan Day as an observance and calculates
+selected U.S. holidays. Weather and break windows are simulated. Staff
+confirm Pittsburgh availability, store hours, filming consent, and HQ approval.
 
-National Tartan Day is represented as an annual observance. Selected U.S.
-holidays are calculated locally. Weather and academic break windows are
-simulated. Manual trend-report entry and live Bright Data collection are outside the current
-implementation. Keep API keys and private client inputs out of Git.
+### Use newer Bright Data exports
+
+Set `WUSHILAND_BRIGHTDATA_DIR` to a directory containing `signals.json`
+or `trends.json`. In Colab, mount or upload the directory and set
+`env["WUSHILAND_BRIGHTDATA_DIR"]` before the server starts. Each request
+selects the newest eligible export per file type. Signals guide hooks and
+formats. Older references are labeled historical, and missing or unusable
+exports fall back to local formats. The app reads saved files without a
+Bright Data key. Keep keys and full exports out of Git.
 
 ## Test
 
-```sh
-python -m unittest discover -s tests -v
-```
-
-The suite stubs model responses and HTTP calls and needs no credentials.
-For a live check, run both staff scenarios with a key and inspect the
-drafting mode and decision log. Score each brief 0–2 on calendar accuracy,
-audience and weather fit, product grounding, and filmability. A pilot
-target is 7/8 with zero invented products, events, or promotions.
-
-### Saved Bright Data creative references
-
-Each **Generate briefs** request reads saved exports from
-`wushiland/data/brightdata/`. The repository includes a minimized seed from
-the November 13 demo. For newer exports, set `WUSHILAND_BRIGHTDATA_DIR`
-to a directory containing the prototype's `signals.json` and/or
-`trends.json` files. Subdirectories are supported. For Colab, mount or
-upload the exports and set `env["WUSHILAND_BRIGHTDATA_DIR"]` before launching.
-The app selects the newest eligible live export per file type using its
-embedded generation timestamp. Keep full exports in `private-data/` or
-outside the repo.
-
-`wushiland/brightdata.py` turns eligible bubble-tea video metadata into
-creative cues. A discovery group can contribute only if its format has
-already been reviewed. The bundled discovery output has no reviewed
-formats. References older than 30 days are labeled historical. The agent
-uses the cues to suggest formats and hooks, with links and snapshot dates
-attached to briefs that use them. Gemini receives IDs, allowed formats,
-and generic cues. Product selection and ranking still use the catalog,
-weather, and calendar. Template mode can use the cues as format preferences.
-Missing or unusable exports fall back to local formats. The app makes no
-Bright Data collection requests and needs no Bright Data key.
+Run `python -m unittest discover -s tests -v`. Tests use mocked Gemini
+responses. For a live check, run both example weeks with a Gemini key
+and review grounding, weather fit, and filmability.
