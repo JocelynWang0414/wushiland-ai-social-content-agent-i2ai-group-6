@@ -10,6 +10,10 @@ INSTRUCTIONS = """Plan three distinct, filmable short videos for Wushiland in Pi
 Return a JSON object with a briefs array. Every brief needs product (exact supplied name),
 event (exact supplied name or null), format (one supplied name), hook, concept,
 script (three lines), shots (three instructions), and why (a short staff-facing explanation).
+Creative signals are optional ideas for format and hook only. When using one, return
+its exact ID as creative_signal_id with the matching format; otherwise return null.
+Keep product and event choices grounded in the catalog, weather, and calendar. Do not
+claim platform popularity, copy captions or audio, or add products from the references.
 Tie each reason to the product and the supplied audience, event, or seasonal scenario.
 Use an indoor shoot in rain or cold. During breaks, target Oakland neighbors and workers.
 Treat simulated weather as planning context, never as a forecast in public-facing copy.

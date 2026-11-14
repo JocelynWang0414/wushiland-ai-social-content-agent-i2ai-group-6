@@ -91,6 +91,7 @@ availability, filming consent, and HQ approval before publishing.
 | `wushiland/web.py` | Loopback HTTP server, date form, input handling, result rendering, and planner selection. |
 | `wushiland/agent.py` | Calendar and seasonal lookups, candidate validation, retry and template fallback, posting-window selection, and ranking. |
 | `wushiland/llm.py` | Gemini native JSON request, brief extraction, and request diagnostics. |
+| `wushiland/brightdata.py` | Saved export lookup, creative cue extraction, and provenance. |
 | `wushiland/data/events.json` | Dated Spring Carnival entries with sources. Add future dates once CMU publishes them. |
 | `wushiland/data/products.json` | Public U.S. menu seed catalog, product profiles, and shot suggestions. |
 | `tests/test_mvp.py` | Calendar, audience, orchestration, and Gemini adapter regression tests. |
@@ -105,7 +106,7 @@ creative plausibility and brand claims.
 
 National Tartan Day is represented as an annual observance. Selected U.S.
 holidays are calculated locally. Weather and academic break windows are
-simulated. Trend-report ingestion and Bright Data are outside the current
+simulated. Manual trend-report entry and live Bright Data collection are outside the current
 implementation. Keep API keys and private client inputs out of Git.
 
 ## Test
@@ -119,3 +120,26 @@ For a live check, run both staff scenarios with a key and inspect the
 drafting mode and decision log. Score each brief 0–2 on calendar accuracy,
 audience and weather fit, product grounding, and filmability. A pilot
 target is 7/8 with zero invented products, events, or promotions.
+
+### Saved Bright Data creative references
+
+Each **Generate briefs** request reads saved exports from
+`wushiland/data/brightdata/`. The repository includes a minimized seed from
+the November 13 demo. For newer exports, set `WUSHILAND_BRIGHTDATA_DIR`
+to a directory containing the prototype's `signals.json` and/or
+`trends.json` files. Subdirectories are supported. For Colab, mount or
+upload the exports and set `env["WUSHILAND_BRIGHTDATA_DIR"]` before launching.
+The app selects the newest eligible live export per file type using its
+embedded generation timestamp. Keep full exports in `private-data/` or
+outside the repo.
+
+`wushiland/brightdata.py` turns eligible bubble-tea video metadata into
+creative cues. A discovery group can contribute only if its format has
+already been reviewed. The bundled discovery output has no reviewed
+formats. References older than 30 days are labeled historical. The agent
+uses the cues to suggest formats and hooks, with links and snapshot dates
+attached to briefs that use them. Gemini receives IDs, allowed formats,
+and generic cues. Product selection and ranking still use the catalog,
+weather, and calendar. Template mode can use the cues as format preferences.
+Missing or unusable exports fall back to local formats. The app makes no
+Bright Data collection requests and needs no Bright Data key.

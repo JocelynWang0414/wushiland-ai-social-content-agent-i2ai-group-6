@@ -1,12 +1,15 @@
 import io
 import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from datetime import date, datetime
 from unittest.mock import patch
 
 from wushiland.agent import calendar, generate, load
 from wushiland.web import render
 from wushiland.llm import plan
+from wushiland.brightdata import load_creative_signals
 
 
 class WeeklyBriefTests(unittest.TestCase):
@@ -98,6 +101,33 @@ class GeminiAdapterTests(unittest.TestCase):
         self.assertTrue(request.full_url.endswith("/models/gemini-3.5-flash-lite:generateContent"))
         self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
         self.assertEqual(json.loads(request.data)["generationConfig"]["responseMimeType"], "application/json")
+
+
+class SavedCreativeTests(unittest.TestCase):
+    def test_reload_uses_newest_export_and_tolerates_bad_files(self):
+        seed = Path("wushiland/data/brightdata/signals.json")
+        export = json.loads(seed.read_text())
+        with TemporaryDirectory() as directory, patch.dict(
+            "os.environ", {"WUSHILAND_BRIGHTDATA_DIR": directory}
+        ):
+            root = Path(directory)
+            (root / "signals.json").write_text(json.dumps(export))
+            newer = root / "newer"
+            newer.mkdir()
+            (newer / "signals.json").write_text("{")
+            day = date(2027, 4, 12)
+            refs = load_creative_signals(day, [])
+            self.assertTrue(refs and all(ref["historical"] for ref in refs))
+            export["generated_at"] = "2027-04-10T01:00:00Z"
+            export["signals"] = []
+            (newer / "signals.json").write_text(json.dumps(export))
+            self.assertEqual(load_creative_signals(day, []), [])
+
+    def test_template_brief_cites_saved_reference(self):
+        result = generate(date(2027, 4, 12), as_of=date(2027, 4, 12))
+        self.assertTrue(any(any("tiktok.com" in url for url in brief["sources"])
+                            for brief in result["briefs"]))
+        self.assertTrue(all("Spring Carnival" in brief["concept"] for brief in result["briefs"]))
 
 
 if __name__ == "__main__":

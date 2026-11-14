@@ -4,6 +4,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .brightdata import load_creative_signals
+
 DATA = Path(__file__).parent / "data"
 ET = ZoneInfo("America/New_York")
 DAY = timedelta(days=1)
@@ -123,14 +125,17 @@ def generate(start, *, as_of=None, planner=None):
     weather = seasonal_weather(start)
     catalog = load("products")
     trace = ["Read the calendar, seasonal scenario, and product catalog."]
+    signals = load_creative_signals(as_of, trace)
     briefs = []
     if planner:
-        briefs = model_briefs(planner, start, end, as_of, events, weather, catalog, trace)
+        briefs = model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace)
     model_count = len(briefs)
     event_options = [event for event in events if event["name"] not in
                      {"Thanksgiving", "Christmas Day", "New Year's Day", "Independence Day"}]
     event_options += [event for event in events if event not in event_options]
-    for attempt, format_name in enumerate(FORMATS):
+    signal_formats = {signal["format"]: signal for signal in reversed(signals)}
+    formats = dict.fromkeys([*signal_formats, *FORMATS])
+    for attempt, format_name in enumerate(formats):
         if len(briefs) >= 3:
             break
         if any(brief["format"] == format_name for brief in briefs):
@@ -150,6 +155,7 @@ def generate(start, *, as_of=None, planner=None):
         ordered.sort(key=lambda product: product["name"] in used)
         for product in ordered:
             brief = draft_brief(product, format_name, event, weather, window)
+            add_reference(brief, signal_formats.get(format_name))
             problems = brand_review(brief, catalog)
             if problems:
                 trace.append(f"Rejected {format_name} with {product['name']}: {', '.join(problems)}.")
@@ -165,10 +171,11 @@ def generate(start, *, as_of=None, planner=None):
             "briefs": sorted(briefs, key=lambda brief: -brief["score"]), "trace": trace}
 
 
-def model_briefs(planner, start, end, as_of, events, weather, catalog, trace):
+def model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace):
     evidence = {"week": [str(start), str(end)], "planning_date": str(as_of),
                 "events": events, "weather": weather, "products": catalog,
-                "formats": list(FORMATS)}
+                "formats": list(FORMATS), "creative_signals": [
+                    {key: signal[key] for key in ("id", "format", "cue")} for signal in signals]}
     approved = []
     feedback = []
     for attempt in range(2):
@@ -179,7 +186,7 @@ def model_briefs(planner, start, end, as_of, events, weather, catalog, trace):
             break
         feedback = []
         for candidate in candidates[:5]:
-            brief, problem = validate_candidate(candidate, evidence, start, end, as_of, attempt, approved)
+            brief, problem = validate_candidate(candidate, evidence, start, end, as_of, attempt, approved, signals)
             if problem:
                 feedback.append(problem)
             else:
@@ -194,7 +201,7 @@ def model_briefs(planner, start, end, as_of, events, weather, catalog, trace):
     return approved
 
 
-def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved):
+def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved, signals):
     if not isinstance(candidate, dict):
         return None, "Each proposed brief must be a JSON object."
     catalog, events, weather = evidence["products"], evidence["events"], evidence["weather"]
@@ -219,6 +226,12 @@ def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved
     brief = draft_brief(product, format_name, event, weather, window)
     brief.update({field: candidate[field] for field in ("hook", "concept", *lists)})
     brief["rationale"].append(candidate["why"])
+    signal_id = candidate.get("creative_signal_id")
+    if signal_id is not None:
+        signal = next((item for item in signals if item["id"] == signal_id and item["format"] == format_name), None)
+        if signal is None:
+            return None, "Use a supplied creative signal ID matching the format, or use null."
+        add_reference(brief, signal)
     problems = brand_review(brief, catalog)
     if problems:
         return None, ", ".join(problems)
@@ -227,3 +240,10 @@ def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved
 
 def valid_text(value):
     return isinstance(value, str) and bool(value.strip()) and len(value) <= 600
+
+
+def add_reference(brief, signal):
+    if signal:
+        age = "Historical example. " if signal["historical"] else ""
+        brief["rationale"].append(f"{age}{signal['label']} {signal['cue']} Snapshot: {signal['snapshot']}.")
+        brief["sources"].append(signal["url"])

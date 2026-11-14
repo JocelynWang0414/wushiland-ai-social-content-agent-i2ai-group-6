@@ -1,0 +1,73 @@
+{
+  "mode": "live",
+  "generated_at": "2026-11-13T22:05:31.883363+00:00",
+  "schema_version": "1.0",
+  "signals": [
+    {
+      "source_url": "https://www.tiktok.com/@miahomecatfe/video/7670858587844922645/",
+      "published_at": "2026-08-20T06:09:54.000Z",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "hashtags": [
+        "mangojasminecloud",
+        "resepminuman"
+      ],
+      "title": ""
+    },
+    {
+      "source_url": "https://www.tiktok.com/@miahomecatfe/video/7677020271437483285/",
+      "published_at": "2026-08-23T00:39:40.000Z",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "hashtags": [
+        "easyrecipes",
+        "frozenyogurt",
+        "healthyrecipe",
+        "matcha",
+        "recipe"
+      ],
+      "title": ""
+    },
+    {
+      "source_url": "https://www.tiktok.com/@thebobapopupshop/video/7637351893794180383/",
+      "published_at": "2026-05-08T03:06:20.000Z",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "hashtags": [
+        "boba",
+        "matcha",
+        "matchalatte",
+        "popupshop",
+        "viral"
+      ],
+      "title": "Tea batching recipe"
+    },
+    {
+      "source_url": "https://www.tiktok.com/@miahomecatfe/video/7698243879354502452/",
+      "published_at": "2026-10-19T05:18:07.000Z",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "hashtags": [
+        "honey",
+        "milktea",
+        "oolong",
+        "recipe"
+      ],
+      "title": ""
+    },
+    {
+      "source_url": "https://www.tiktok.com/@lynns.kitchen_lin/video/7649087168089951495/",
+      "published_at": "2026-06-08T18:04:54.000Z",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "hashtags": [
+        "boba",
+        "bubbletea",
+        "drinkrecipes",
+        "milktea",
+        "viraldrinks"
+      ],
+      "title": "Bubble tea choice"
+    }
+  ]
+}
