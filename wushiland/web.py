@@ -89,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
         start = form.get("start", [""])[0]
         try:
             week = date.fromisoformat(start)
-            result = generate(week, planner=plan if os.getenv("OPENAI_API_KEY") else None)
+            result = generate(week, planner=plan if os.getenv("GEMINI_API_KEY", "").strip() else None)
         except (ValueError, OverflowError) as error:
             self.reply(render(start, error=str(error)), 400)
             return

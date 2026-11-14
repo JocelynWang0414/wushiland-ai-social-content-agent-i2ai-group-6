@@ -1,83 +1,121 @@
-# Wushiland AI Social Content Agent — I2AI Group 6
+# Wushiland Weekly Briefs
 
-Prototype AI-assisted social content planning tool for Wushiland.
+A staff-facing prototype for planning short-form videos around a selected
+seven-day window in Pittsburgh. [Project scope](PROJECT_SCOPE.md) ·
+[Team board](https://github.com/users/JocelynWang0414/projects/1/views/1)
 
-## Project Management
+## Run locally
 
-- [GitHub Kanban Board](https://github.com/users/JocelynWang0414/projects/1/views/1)
-- [Project Scope](./PROJECT_SCOPE.md)
-
-## Current Workstreams
-
-- Client requirements and brand materials
-- Trend-data/API investigation
-- Trend and local-context retrieval
-- AI content recommendation workflow
-- Brand-fit and safety guardrails
-- User interface
-- Evaluation and client feedback
-- Final documentation and presentation
-
-## Board Workflow
-
-Recommended status flow:
-
-**Backlog → To Do → In Progress → Client Review / Blocked → Done**
-
-Issues in this repository are the team's trackable work items. Each issue includes a suggested initial status and completion criteria.
-
-## Run the weekly brief MVP
-
-Use Python 3.10+ with the system IANA time zone database available.
-From the repository root:
+From the repository root, use Python 3.10+ with IANA time zone data
+(including America/New_York). The app uses the Python standard library.
+On Windows, install `tzdata` if Python cannot find the time zone.
 
 ```sh
 python -m wushiland.web
-python -m unittest discover -s tests -v
 ```
 
-Open [the local staff interface](http://127.0.0.1:8000), choose the first
-day of a seven-day window, and select **Generate briefs**. April 12, 2027
-is a Spring Carnival scenario. The app works with local templates by default.
+Open [localhost:8000](http://127.0.0.1:8000). To enable Gemini, set
+`GEMINI_API_KEY` in the server environment before launch. The default is
+`gemini-3.5-flash-lite`. Set `WUSHILAND_GEMINI_MODEL` to override it.
+With no key, the app uses local templates.
 
-### Enable the model
+## Run in Google Colab
 
-Set `OPENAI_API_KEY` before launching the server. The default model is
-`gpt-4.1-mini`; set `WUSHILAND_MODEL` to override it. In Colab, add
-`OPENAI_API_KEY` to notebook Secrets, grant the notebook access, and put
-the following before the existing server launch. Restart the runtime or
-stop any prior server first.
+Add the `GEMINI_API_KEY` secret and enable notebook access for Gemini mode.
+Paste this into one cell. It checks out the current MVP branch and binds
+to a free port, so it works alongside an older server on port 8000.
 
 ```python
 import os
-from google.colab import userdata
-os.environ["OPENAI_API_KEY"] = userdata.get("OPENAI_API_KEY")
+import subprocess
+import sys
+from pathlib import Path
+from tempfile import mkdtemp
+
+from google.colab import output, userdata
+
+repo = "https://github.com/JocelynWang0414/wushiland-ai-social-content-agent-i2ai-group-6.git"
+app_dir = Path(mkdtemp(prefix="wushiland-"))
+subprocess.run(
+    ["git", "clone", "--quiet", "--branch", "wushiland-weekly-brief-mvp", repo, str(app_dir)],
+    check=True,
+)
+
+env = os.environ.copy()
+if not env.get("GEMINI_API_KEY", "").strip():
+    try:
+        env["GEMINI_API_KEY"] = userdata.get("GEMINI_API_KEY")
+    except (userdata.SecretNotFoundError, userdata.NotebookAccessError):
+        print("Gemini secret unavailable. Template mode is ready.")
+
+previous = globals().get("wushiland_server")
+if previous is not None and previous.poll() is None:
+    previous.terminate()
+    previous.wait(timeout=5)
+
+wushiland_server = subprocess.Popen(
+    [sys.executable, "-u", "-c", """
+from http.server import ThreadingHTTPServer
+from wushiland.web import Handler
+with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+    print(server.server_port)
+    server.serve_forever()
+"""],
+    cwd=app_dir, env=env, stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT, text=True,
+)
+port = wushiland_server.stdout.readline().strip()
+if not port.isdigit():
+    raise RuntimeError(port + "\n" + wushiland_server.stdout.read())
+output.serve_kernel_port_as_iframe(int(port), height=850)
 ```
 
-The model receives only the selected dates and bundled public product and
-calendar context plus simulated weather. Keep private client inputs out of
-the model request and repository. The interface reports Templates, Mixed,
-or LLM-assisted based on the drafts that passed review.
+## Staff workflow
 
-### Agent workflow and evaluation
+Choose the first date of a week and select **Generate briefs**. Start with
+April 12, 2027 for Spring Carnival or July 12, 2027 for a hot summer-break
+scenario. The app returns up to three ranked ideas with a hook, concept,
+three script beats, three shots, a suggested Eastern Time posting window,
+rationale, and source links. Open **Agent decisions** to review validation
+feedback and any Gemini API errors. Staff confirm store hours, local menu
+availability, filming consent, and HQ approval before publishing.
 
-1. Read the date window, public calendar entries, simulated Pittsburgh weather
-   and break audience, and public U.S. menu. Confirm Pittsburgh menu
-   availability with staff. Tartan Day is an observance.
-2. Ask the model for three distinct, filmable ideas grounded in those inputs.
-3. Validate product, event, format, shot and script structure, posting dates
-   and flagged wording. Retry once with feedback and approved formats. Fill
-   gaps with reviewed templates. Holiday timing uses configured dates and
-   suggested local windows. Staff confirm store hours and HQ approval.
-4. Rank by event tie-in and seasonal product fit. Show the supporting signals,
-   source links, and validation decisions.
+- **LLM-assisted** means Gemini drafted all displayed briefs.
+- **Mixed** means Gemini drafted some briefs and templates filled gaps.
+- **Templates** means no Gemini drafts passed or Gemini was unavailable.
 
-Local tests exercise a rainy Carnival week, a winter break crossing years,
-Tartan Day, a hot summer week, model rejection and retry, and fallback.
-Programmed model replies test orchestration. To evaluate live reasoning,
-run Carnival and a July break week with the API enabled and score each
-brief from 0 to 2 on calendar accuracy, audience and weather fit, product
-grounding, and filmability. A useful pilot target is 7/8 with zero invented
-events or products, promotions, and unsupported local-availability claims.
-Review model rationales and creative copy manually, since the brand checks
-cover known wording patterns and structured fields.
+## Implementation
+
+| File | Responsibility |
+| --- | --- |
+| `wushiland/web.py` | Loopback HTTP server, date form, input handling, result rendering, and planner selection. |
+| `wushiland/agent.py` | Calendar and seasonal lookups, candidate validation, retry and template fallback, posting-window selection, and ranking. |
+| `wushiland/llm.py` | Gemini native JSON request, brief extraction, and request diagnostics. |
+| `wushiland/data/events.json` | Dated Spring Carnival entries with sources. Add future dates once CMU publishes them. |
+| `wushiland/data/products.json` | Public U.S. menu seed catalog, product profiles, and shot suggestions. |
+| `tests/test_mvp.py` | Calendar, audience, orchestration, and Gemini adapter regression tests. |
+
+The agent sends the selected week, event and catalog records, simulated
+weather, approximate break audience, and allowed formats to Gemini. It
+checks product and event names, distinct formats, script and shot structure,
+suggested dates, and flagged wording. It can request one revision with
+validation feedback, then fills remaining slots with templates. Ranking
+uses event tie-in and seasonal product fit. Human review still covers
+creative plausibility and brand claims.
+
+National Tartan Day is represented as an annual observance. Selected U.S.
+holidays are calculated locally. Weather and academic break windows are
+simulated. Trend-report ingestion and Bright Data are outside the current
+implementation. Keep API keys and private client inputs out of Git.
+
+## Test
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+The suite stubs model responses and HTTP calls and needs no credentials.
+For a live check, run both staff scenarios with a key and inspect the
+drafting mode and decision log. Score each brief 0–2 on calendar accuracy,
+audience and weather fit, product grounding, and filmability. A pilot
+target is 7/8 with zero invented products, events, or promotions.

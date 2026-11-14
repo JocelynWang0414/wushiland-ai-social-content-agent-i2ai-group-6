@@ -1,9 +1,12 @@
+import io
+import json
 import unittest
 from datetime import date, datetime
 from unittest.mock import patch
 
 from wushiland.agent import calendar, generate, load
 from wushiland.web import render
+from wushiland.llm import plan
 
 
 class WeeklyBriefTests(unittest.TestCase):
@@ -79,6 +82,22 @@ class WeeklyBriefTests(unittest.TestCase):
         self.assertIn('name="start"', page)
         self.assertNotIn("Trend reports", page)
         self.assertNotIn('name="demo"', page)
+
+
+class GeminiAdapterTests(unittest.TestCase):
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True)
+    @patch("wushiland.llm.urlopen")
+    def test_default_model_and_native_json_request(self, urlopen):
+        response = {"candidates": [{"content": {"parts": [
+            {"thought": True, "text": "hidden"},
+            {"text": json.dumps({"briefs": [{"product": "Boba Milk Tea"}]})},
+        ]}}]}
+        urlopen.return_value.__enter__.return_value = io.BytesIO(json.dumps(response).encode())
+        self.assertEqual(plan({}, [], []), [{"product": "Boba Milk Tea"}])
+        request = urlopen.call_args.args[0]
+        self.assertTrue(request.full_url.endswith("/models/gemini-3.5-flash-lite:generateContent"))
+        self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
+        self.assertEqual(json.loads(request.data)["generationConfig"]["responseMimeType"], "application/json")
 
 
 if __name__ == "__main__":

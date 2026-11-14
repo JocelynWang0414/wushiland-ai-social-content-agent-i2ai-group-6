@@ -1,10 +1,11 @@
-"""Optional OpenAI planner using public seed data."""
+"""Optional Gemini planner using public seed data."""
 import json
 import os
-from urllib.error import URLError
+import re
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-MODEL = "gpt-4.1-mini"
+MODEL = "gemini-3.5-flash-lite"
 INSTRUCTIONS = """Plan three distinct, filmable short videos for Wushiland in Pittsburgh.
 Return a JSON object with a briefs array. Every brief needs product (exact supplied name),
 event (exact supplied name or null), format (one supplied name), hook, concept,
@@ -18,22 +19,40 @@ people without consent. Address any review feedback and avoid previously approve
 
 
 def plan(evidence, feedback, used_formats):
-    body = {"model": os.getenv("WUSHILAND_MODEL", MODEL), "store": False,
-            "response_format": {"type": "json_object"}, "max_completion_tokens": 2400,
-            "messages": [{"role": "system", "content": INSTRUCTIONS},
-                         {"role": "user", "content": json.dumps({
-                             "evidence": evidence, "review_feedback": feedback, "used_formats": used_formats})}]}
-    request = Request("https://api.openai.com/v1/chat/completions", data=json.dumps(body).encode(),
-                      headers={"Authorization": "Bearer " + os.environ["OPENAI_API_KEY"],
-                               "Content-Type": "application/json"})
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise ValueError("GEMINI_API_KEY is missing.")
+    model = os.getenv("WUSHILAND_GEMINI_MODEL", MODEL).removeprefix("models/")
+    if not re.fullmatch(r"[a-zA-Z0-9_.-]+", model):
+        raise ValueError("WUSHILAND_GEMINI_MODEL must be a Gemini model ID.")
+    body = {
+        "systemInstruction": {"parts": [{"text": INSTRUCTIONS}]},
+        "contents": [{"role": "user", "parts": [{"text": json.dumps({
+            "evidence": evidence, "review_feedback": feedback, "used_formats": used_formats,
+        })}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
+    }
+    request = Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+    )
     try:
-        with urlopen(request, timeout=35) as response:
+        with urlopen(request, timeout=55) as response:
             payload = json.load(response)
-        briefs = json.loads(payload["choices"][0]["message"]["content"])["briefs"]
+        parts = payload["candidates"][0]["content"]["parts"]
+        content = "".join(part.get("text", "") for part in parts if not part.get("thought"))
+        briefs = json.loads(content)["briefs"]
         if not isinstance(briefs, list):
             raise ValueError
         return briefs
-    except (URLError, TimeoutError) as error:
-        raise ValueError("Model request failed. Check API access and try again.") from error
-    except (KeyError, IndexError, TypeError, ValueError) as error:
-        raise ValueError("Model returned an unreadable brief response.") from error
+    except HTTPError as error:
+        try:
+            detail = json.load(error)["error"]["message"].replace(key, "[redacted]")[:300]
+        except (ValueError, KeyError, TypeError, AttributeError):
+            detail = "No error detail returned."
+        raise ValueError(f"Gemini HTTP {error.code}: {detail}") from None
+    except (URLError, TimeoutError):
+        raise ValueError("Gemini connection failed or timed out.") from None
+    except (KeyError, IndexError, TypeError, AttributeError, ValueError):
+        raise ValueError("Gemini returned an unreadable brief response.") from None
