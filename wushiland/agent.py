@@ -2,7 +2,6 @@
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 DATA = Path(__file__).parent / "data"
@@ -59,44 +58,6 @@ def seasonal_weather(start):
             "audience": audience, "break_proxy": break_proxy, "source": "Simulated Pittsburgh weather and approximate break windows"}
 
 
-def trend_lookup(start, end, as_of, reports, demo):
-    if not isinstance(reports, list):
-        raise ValueError("Trend reports must be a JSON array.")
-    cutoff = min(end, as_of)
-    matches = {}
-    for report in reports:
-        if not isinstance(report, dict):
-            raise ValueError("Each trend report must be a JSON object.")
-        title, source = report.get("title"), report.get("source")
-        format_name = report.get("format")
-        if not isinstance(title, str) or not title.strip() or len(title) > 120 or not isinstance(format_name, str) or format_name not in FORMATS:
-            raise ValueError("Trend reports require a title and a supported format.")
-        try:
-            published = date.fromisoformat(report["published"])
-        except (KeyError, ValueError, TypeError) as error:
-            raise ValueError("Each trend report needs a YYYY-MM-DD publication date.") from error
-        fixture = report.get("fixture", False)
-        if not isinstance(fixture, bool):
-            raise ValueError("The fixture flag must be a boolean.")
-        if fixture and not demo:
-            continue
-        if not fixture:
-            parsed = urlsplit(source or "") if isinstance(source, str) else None
-            host = parsed.hostname if parsed else ""
-            if (not parsed or parsed.scheme != "https" or not host or "." not in host
-                    or parsed.username or parsed.password
-                    or any(host == domain or host.endswith("." + domain)
-                           for domain in ("tiktok.com", "instagram.com"))):
-                raise ValueError("Use an HTTPS public trend-report link outside TikTok and Instagram.")
-        if start - DAY * 14 <= published <= cutoff:
-            existing = matches.get(format_name)
-            if existing is None or published > date.fromisoformat(existing["published"]):
-                matches[format_name] = {"title": title.strip(), "format": format_name,
-                                        "published": str(published), "source": source if not fixture else "",
-                                        "fixture": fixture}
-    return list(matches.values())
-
-
 def posting_window(start, end, events, event, as_of, attempt):
     earliest = max(start, as_of)
     if event and date.fromisoformat(event["end"]) < earliest:
@@ -119,14 +80,14 @@ def brand_review(brief, catalog):
         problems.append("Product is missing from catalog")
     if len(brief["shots"]) != 3 or len(brief["script"]) != 3:
         problems.append("Brief does not contain three production beats")
-    copy = " ".join([brief["hook"], brief["concept"], *brief["script"], *brief["shots"]]).lower()
+    copy = " ".join([brief["hook"], brief["concept"], *brief["script"], *brief["shots"], *brief["rationale"]]).lower()
     for phrase in ("official partner", "guaranteed", "free boba", "% off", "cures", "film strangers"):
         if phrase in copy:
             problems.append(f"Review required for wording: {phrase}")
     return problems
 
 
-def draft_brief(product, format_name, trend, event, weather, window):
+def draft_brief(product, format_name, event, weather, window):
     hook, direction = FORMATS[format_name]
     occasion = event["name"] if event else f"a {weather['season']} afternoon in Oakland"
     if event:
@@ -136,7 +97,7 @@ def draft_brief(product, format_name, trend, event, weather, window):
     weather_direction = ("Keep the shoot indoors."
                          if weather["condition"] in {"rainy", "cold"} else "Use daylight near the storefront.")
     seasonal_fit = (product["profile"] == "refreshing") == (weather["condition"] in {"warm", "hot"})
-    rank = (3 if trend else 0) + (2 if event else 0) + int(seasonal_fit)
+    rank = (2 if event else 0) + int(seasonal_fit)
     return {
         "product": product["name"], "format": format_name, "hook": hook,
         "concept": f"{direction} Feature {product['name']} around {occasion}. {weather_direction}",
@@ -146,16 +107,13 @@ def draft_brief(product, format_name, trend, event, weather, window):
         "rationale": [f"Audience: {weather['audience']}.",
                       f"Simulated {weather['condition']} weather ({weather['fahrenheit']}°F). {weather_direction}",
                       "Drink profile matches the seasonal preference." if seasonal_fit else "Adds variety to the drink lineup.",
-                      ("Event tie-in: " + occasion + ".") if event else "An Oakland concept that works without an event.",
-                      ("Demo trend: " if trend and trend["fixture"] else "Report format: ") + trend["title"]
-                      if trend else "Evergreen format. No fresh public trend report was used."],
-        "sources": [source for source in [product["source"], event["source"] if event else "",
-                                         trend["source"] if trend else ""] if source],
+                      ("Event tie-in: " + occasion + ".") if event else "An Oakland concept that works without an event."],
+        "sources": [product["source"]] + ([event["source"]] if event else []),
         "staff_review": "Confirm Pittsburgh availability, hours, filming consent and HQ approval before publishing.",
     }
 
 
-def generate(start, reports=None, *, as_of=None, demo=False):
+def generate(start, *, as_of=None, planner=None):
     """Gather evidence and pursue three distinct publishable candidates."""
     as_of = as_of or datetime.now(ET).date()
     end = start + DAY * 6
@@ -164,19 +122,19 @@ def generate(start, reports=None, *, as_of=None, demo=False):
     events = calendar(start, end)
     weather = seasonal_weather(start)
     catalog = load("products")
-    reports = load("trends") if reports is None and demo else ([] if reports is None else reports)
-    trends = trend_lookup(start, end, as_of, reports, demo)
-    trace = ["Read the calendar, seasonal scenario, product catalog, and eligible trend reports."]
-    if not trends:
-        trace.append("No eligible trend reports. Switched to evergreen formats.")
+    trace = ["Read the calendar, seasonal scenario, and product catalog."]
+    briefs = []
+    if planner:
+        briefs = model_briefs(planner, start, end, as_of, events, weather, catalog, trace)
+    model_count = len(briefs)
     event_options = [event for event in events if event["name"] not in
                      {"Thanksgiving", "Christmas Day", "New Year's Day", "Independence Day"}]
     event_options += [event for event in events if event not in event_options]
-    briefs = []
-    formats = {trend["format"]: trend for trend in trends}
-    for format_name in FORMATS:
-        formats.setdefault(format_name, None)
-    for attempt, (format_name, trend) in enumerate(formats.items()):
+    for attempt, format_name in enumerate(FORMATS):
+        if len(briefs) >= 3:
+            break
+        if any(brief["format"] == format_name for brief in briefs):
+            continue
         event = event_options[attempt % len(event_options)] if event_options else None
         window = posting_window(start, end, events, event, as_of, attempt)
         if window is None and event:
@@ -191,7 +149,7 @@ def generate(start, reports=None, *, as_of=None, demo=False):
         used = {brief["product"] for brief in briefs}
         ordered.sort(key=lambda product: product["name"] in used)
         for product in ordered:
-            brief = draft_brief(product, format_name, trend, event, weather, window)
+            brief = draft_brief(product, format_name, event, weather, window)
             problems = brand_review(brief, catalog)
             if problems:
                 trace.append(f"Rejected {format_name} with {product['name']}: {', '.join(problems)}.")
@@ -201,6 +159,71 @@ def generate(start, reports=None, *, as_of=None, demo=False):
         if len(briefs) == 3:
             break
     trace.append(f"Approved {len(briefs)} of 3 requested briefs after rule-based review.")
-    return {"start": str(start), "end": str(end), "as_of": str(as_of), "demo": demo,
-            "events": events, "weather": weather, "trends": trends,
+    mode = "LLM-assisted" if model_count == len(briefs) and model_count else "Mixed" if model_count else "Templates"
+    return {"start": str(start), "end": str(end), "as_of": str(as_of), "mode": mode,
+            "events": events, "weather": weather,
             "briefs": sorted(briefs, key=lambda brief: -brief["score"]), "trace": trace}
+
+
+def model_briefs(planner, start, end, as_of, events, weather, catalog, trace):
+    evidence = {"week": [str(start), str(end)], "planning_date": str(as_of),
+                "events": events, "weather": weather, "products": catalog,
+                "formats": list(FORMATS)}
+    approved = []
+    feedback = []
+    for attempt in range(2):
+        try:
+            candidates = planner(evidence, feedback, [brief["format"] for brief in approved])
+        except ValueError as error:
+            trace.append(str(error))
+            break
+        feedback = []
+        for candidate in candidates[:5]:
+            brief, problem = validate_candidate(candidate, evidence, start, end, as_of, attempt, approved)
+            if problem:
+                feedback.append(problem)
+            else:
+                approved.append(brief)
+            if len(approved) == 3:
+                break
+        trace.append(f"Model round {attempt + 1}: {len(approved)} approved; {len(feedback)} rejected.")
+        trace.extend(feedback)
+        if len(approved) == 3:
+            return approved
+    trace.append("Filled remaining slots with reviewed templates where possible.")
+    return approved
+
+
+def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved):
+    if not isinstance(candidate, dict):
+        return None, "Each proposed brief must be a JSON object."
+    catalog, events, weather = evidence["products"], evidence["events"], evidence["weather"]
+    product = next((item for item in catalog if item["name"] == candidate.get("product")), None)
+    event_name = candidate.get("event")
+    event = next((item for item in events if item["name"] == event_name), None)
+    format_name = candidate.get("format")
+    if (not product or (event_name is not None and not event)
+            or not isinstance(format_name, str) or format_name not in FORMATS or any(brief["format"] == format_name for brief in approved)):
+        return None, "Choose an exact catalog product, an available event or null, and an unused format."
+    fields = ("hook", "concept", "why")
+    lists = ("script", "shots")
+    if any(not valid_text(candidate.get(field)) for field in fields):
+        return None, "Provide a concise hook, concept, and evidence-based reason."
+    for field in lists:
+        values = candidate.get(field)
+        if not isinstance(values, list) or len(values) != 3 or not all(map(valid_text, values)):
+            return None, "Provide exactly three text beats for both script and shots."
+    window = posting_window(start, end, events, event, as_of, attempt + len(approved))
+    if window is None:
+        return None, "The event has no eligible posting window. Try another event or use null."
+    brief = draft_brief(product, format_name, event, weather, window)
+    brief.update({field: candidate[field] for field in ("hook", "concept", *lists)})
+    brief["rationale"].append(candidate["why"])
+    problems = brand_review(brief, catalog)
+    if problems:
+        return None, ", ".join(problems)
+    return brief, None
+
+
+def valid_text(value):
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= 600

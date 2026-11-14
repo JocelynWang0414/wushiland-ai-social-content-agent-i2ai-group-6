@@ -36,46 +36,48 @@ python -m wushiland.web
 python -m unittest discover -s tests -v
 ```
 
-Open [the local staff interface](http://127.0.0.1:8000). Select the first day
-of the seven-day planning window. Paste trend-report records if available,
-generate briefs, review the evidence and suggested posting windows, and send
-selected ideas to HQ for review. For a repeatable demo, enable sample data
-and select April 12, 2027. Demo mode uses the first day as its simulated
-planning date.
+Open [the local staff interface](http://127.0.0.1:8000), choose the first
+day of a seven-day window, and select **Generate briefs**. April 12, 2027
+is a Spring Carnival scenario. The app works with local templates by default.
 
-Each trend input needs `title`, `format`, `published` (ISO date), and `source`
-(an HTTPS link to a public report). Supported formats are `routine`, `pour`,
-`choice`, `pov`, and `checklist`. The agent considers reports from up to 14
-days before the selected window, only if they were available on the planning
-date. Weeks without eligible entries use evergreen concepts. Public report
-links and dates are staff-supplied and should be verified before entry.
+### Enable the model
 
-## MVP implementation plan and decisions
+Set `OPENAI_API_KEY` before launching the server. The default model is
+`gpt-4.1-mini`; set `WUSHILAND_MODEL` to override it. In Colab, add
+`OPENAI_API_KEY` to notebook Secrets, grant the notebook access, and put
+the following before the existing server launch. Restart the runtime or
+stop any prior server first.
 
-1. **Inventory.** The original GitHub repository held the project scope and
-   workflow documentation. The separate Drive demo implemented Bright Data
-   collection, normalization and candidate filtering. The weekly MVP uses
-   report inputs to meet the scope boundary around platform data collection.
-2. **Inputs.** Seed dated Spring Carnival entries, annual National Tartan
-   Day and selected U.S. holidays. National Tartan Day is an observance.
-   Add future Carnival dates to `wushiland/data/events.json` as CMU publishes
-   them. Seasonal weather and break windows are simulated planning inputs.
-   The seed catalog comes from Wushiland's public U.S. menu. Staff should
-   confirm Pittsburgh availability. Keep client-only inputs out of Git.
-3. **Agent.** Gather calendar, simulated weather, trend-report formats and
-   products. Select candidate formats and products, check posting windows,
-   draft and review. The agent switches to evergreen timing when event
-   timing fails and retries with another product if brand review rejects
-   a brief. It ranks the passing briefs by trend evidence, event tie-in
-   and seasonal product fit. The interface shows those decisions.
-4. **Delivery.** Return up to three ranked briefs with a hook, concept,
-   script, shot list, posting time, rationale and source links. Posting
-   times are suggested local windows. The conflict check avoids posting
-   on the configured holiday dates. Staff still verify store hours,
-   event timing, filming consent and HQ approval.
-5. **Validation and extension.** Test calendar boundaries, seasonality,
-   trend freshness, fallback behavior and brand-review retries. The
-   dependency-free MVP uses a deterministic planning loop and editable
-   draft templates. The draft function is the integration point for a
-   future approved LLM. Review Pittsburgh product availability, approved
-   brand language and real report examples with staff before a pilot.
+```python
+import os
+from google.colab import userdata
+os.environ["OPENAI_API_KEY"] = userdata.get("OPENAI_API_KEY")
+```
+
+The model receives only the selected dates and bundled public product and
+calendar context plus simulated weather. Keep private client inputs out of
+the model request and repository. The interface reports Templates, Mixed,
+or LLM-assisted based on the drafts that passed review.
+
+### Agent workflow and evaluation
+
+1. Read the date window, public calendar entries, simulated Pittsburgh weather
+   and break audience, and public U.S. menu. Confirm Pittsburgh menu
+   availability with staff. Tartan Day is an observance.
+2. Ask the model for three distinct, filmable ideas grounded in those inputs.
+3. Validate product, event, format, shot and script structure, posting dates
+   and flagged wording. Retry once with feedback and approved formats. Fill
+   gaps with reviewed templates. Holiday timing uses configured dates and
+   suggested local windows. Staff confirm store hours and HQ approval.
+4. Rank by event tie-in and seasonal product fit. Show the supporting signals,
+   source links, and validation decisions.
+
+Local tests exercise a rainy Carnival week, a winter break crossing years,
+Tartan Day, a hot summer week, model rejection and retry, and fallback.
+Programmed model replies test orchestration. To evaluate live reasoning,
+run Carnival and a July break week with the API enabled and score each
+brief from 0 to 2 on calendar accuracy, audience and weather fit, product
+grounding, and filmability. A useful pilot target is 7/8 with zero invented
+events or products, promotions, and unsupported local-availability claims.
+Review model rationales and creative copy manually, since the brand checks
+cover known wording patterns and structured fields.

@@ -1,18 +1,19 @@
 """Run the staff preview on a loopback-only development server."""
-import json
+import os
 from datetime import date, datetime
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 from .agent import ET, generate
+from .llm import plan
 
 
 def items(values):
     return "<ul>" + "".join(f"<li>{escape(value)}</li>" for value in values) + "</ul>"
 
 
-def render(start="", reports="", result=None, error=""):
+def render(start="", result=None, error=""):
     cards = ""
     if result:
         weather = result["weather"]
@@ -21,8 +22,7 @@ def render(start="", reports="", result=None, error=""):
             f"<h2>Briefs for {result['start']} to {result['end']}</h2>"
             f"<p><strong>Simulated weather</strong> · {weather['condition']} · {weather['fahrenheit']}°F"
             f" · {weather['audience']}</p><p><strong>Calendar</strong> · {escape(events)}</p>"
-            f"<p><strong>Trend inputs</strong> · {len(result['trends'])} eligible formats"
-            f"{' · Demo fixtures enabled' if result['demo'] else ''}</p>"
+            f"<p><strong>Drafting mode</strong> · {result['mode']}</p>"
         )
         for index, brief in enumerate(result["briefs"], 1):
             posting = datetime.fromisoformat(brief["posting_time"]).strftime("%a %b %d, %I:%M %p ET")
@@ -37,7 +37,6 @@ def render(start="", reports="", result=None, error=""):
                 f"<p><small>{escape(brief['staff_review'])}</small></p></article>"
             )
         cards += f"<details><summary>Agent decisions</summary>{items(result['trace'])}</details>"
-    checked = ' checked' if result and result["demo"] else ''
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wushiland Weekly Briefs</title>
@@ -52,14 +51,11 @@ button {{background:#204b39;color:#fff;cursor:pointer;font-weight:650}} a {{colo
 .actions label {{margin:0;font-weight:400}} summary {{cursor:pointer}} [role=alert] {{color:#9e1f1f}}
 </style></head><body><main>
 <h1>Wushiland Weekly Briefs</h1>
-<p>Choose a seven-day window. Add public trend-report records if you have them, then review the ranked briefs before sending ideas to HQ.</p>
+<p>Choose a seven-day window, then review the ranked briefs before sending ideas to HQ.</p>
 <form method="post">
 <label for="start">First day of the week</label><input type="date" id="start" name="start" value="{escape(start)}" required>
-<label for="reports">Trend reports (optional JSON)</label>
-<p>Each record needs a title, format, publication date and public report link. Supported formats are routine, pour, choice, pov and checklist.</p>
-<textarea id="reports" name="reports" placeholder='[{{"title":"Report format","format":"pour","published":"2027-04-12","source":"https://example.org/report"}}]'>{escape(reports)}</textarea>
-<div class="actions"><button type="submit">Generate briefs</button><label><input type="checkbox" name="demo"{checked}> Enable sample trend data</label></div>
-<small>Try April 12, 2027 with sample data to see a Spring Carnival example.</small>
+<div class="actions"><button type="submit">Generate briefs</button></div>
+<small>Try April 12, 2027 for a Spring Carnival example.</small>
 </form>
 {"<p role='alert'>" + escape(error) + "</p>" if error else ""}
 {cards}
@@ -91,16 +87,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         form = parse_qs(self.rfile.read(length).decode("utf-8", errors="replace"))
         start = form.get("start", [""])[0]
-        reports = form.get("reports", [""])[0]
-        demo = "demo" in form
         try:
             week = date.fromisoformat(start)
-            as_of = week if demo else None
-            result = generate(week, json.loads(reports) if reports.strip() else None, as_of=as_of, demo=demo)
+            result = generate(week, planner=plan if os.getenv("OPENAI_API_KEY") else None)
         except (ValueError, OverflowError) as error:
-            self.reply(render(start, reports, error=str(error)), 400)
+            self.reply(render(start, error=str(error)), 400)
             return
-        self.reply(render(start, reports, result))
+        self.reply(render(start, result))
 
 
 if __name__ == "__main__":
