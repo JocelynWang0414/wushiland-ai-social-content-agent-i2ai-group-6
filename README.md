@@ -1,106 +1,56 @@
-# Wushiland Weekly Briefs
+# Wushiland Weekly Briefs — TP2 Integration
 
-> **Shared TP2 integration package:** Start with [START_HERE.md](START_HERE.md) for the current upload/online application and [TP2_CHANGES.md](TP2_CHANGES.md) for changes and limitations. The repository instructions below describe the original MVP; cloning its branch does not include these unmerged package changes.
+This branch integrates Jocelyn's weekly-brief MVP with video-evidence reviews, optional CSV/JSON uploads, and bounded TikTok discovery. It does not replace or merge the original `wushiland-weekly-brief-mvp` branch.
 
-Plan up to three ranked short-form videos for a Pittsburgh store week.
-[Project scope](PROJECT_SCOPE.md) · [Team board](https://github.com/users/JocelynWang0414/projects/1/views/1)
+## Quick start
 
-## Run locally
+Use Python 3.10+.
 
-On the `wushiland-weekly-brief-mvp` branch, run `python -m wushiland.web`
-and open [localhost:8000](http://127.0.0.1:8000). Use Python 3.10+ with
-IANA time zone data. Install `tzdata` if Python cannot find America/New_York.
-
-Set `GEMINI_API_KEY` in the server environment for model drafting. The
-default is `gemini-3-flash-preview`. Override it with
-`WUSHILAND_GEMINI_MODEL`. Without a key, the app uses templates.
-
-## Run in Colab
-
-For model drafting, add `GEMINI_API_KEY` in Colab Secrets and enable
-notebook access. Paste this into one cell. It fetches the current MVP
-branch and starts the app on a free port.
-
-```python
-import os
-import subprocess
-import sys
-from pathlib import Path
-from tempfile import mkdtemp
-
-from google.colab import output, userdata
-
-repo = "https://github.com/JocelynWang0414/wushiland-ai-social-content-agent-i2ai-group-6.git"
-app_dir = Path(mkdtemp(prefix="wushiland-"))
-subprocess.run(
-    ["git", "clone", "--quiet", "--branch", "wushiland-weekly-brief-mvp", repo, str(app_dir)],
-    check=True,
-)
-
-env = os.environ.copy()
-if not env.get("GEMINI_API_KEY", "").strip():
-    try:
-        env["GEMINI_API_KEY"] = userdata.get("GEMINI_API_KEY")
-    except (userdata.SecretNotFoundError, userdata.NotebookAccessError):
-        print("Gemini secret unavailable. Template mode is ready.")
-
-previous = globals().get("wushiland_server")
-if previous is not None and previous.poll() is None:
-    previous.terminate()
-    previous.wait(timeout=5)
-
-wushiland_server = subprocess.Popen(
-    [sys.executable, "-u", "-c", """
-from http.server import ThreadingHTTPServer
-from wushiland.web import Handler
-with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-    print(server.server_port)
-    server.serve_forever()
-"""],
-    cwd=app_dir, env=env, stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT, text=True,
-)
-port = wushiland_server.stdout.readline().strip()
-if not port.isdigit():
-    raise RuntimeError(port + "\n" + wushiland_server.stdout.read())
-output.serve_kernel_port_as_iframe(int(port), height=850)
+```sh
+git clone --branch griffin-tp2-integration --single-branch https://github.com/JocelynWang0414/wushiland-ai-social-content-agent-i2ai-group-6.git
+cd wushiland-ai-social-content-agent-i2ai-group-6
+python -m pip install tzdata
+python -m wushiland.app
 ```
 
-## Generate briefs
+On Windows, you can double-click **START_APP.cmd** instead of running the last command. Open the localhost URL printed in the terminal and keep the server running.
 
-Pick a week start and select **Generate briefs**. Try **April 12, 2027**
-for Spring Carnival or **July 12, 2027** for simulated summer break. Each
-brief includes a hook, concept, script, shots, suggested Eastern Time
-posting window, rationale, and sources. **LLM-assisted**, **Mixed**, and
-**Templates** indicate how much of the output came from Gemini. Open
-**Agent decisions** for review feedback or API errors.
+1. Expand **API connections**, enter your Gemini key, and click **Connect for this session**. The default model is `gemini-3-flash-preview`; availability depends on your account.
+2. Choose **My uploaded video data** or **Online TikTok discovery**.
+3. For uploads, expand **Data sources**, download the CSV template, fill it with real video records, and upload it. UTF-8 CSV and JSON are supported. No Bright Data key is needed.
+4. For online TikTok discovery, connect Bright Data too. Recent saved data is reused for 24 hours; otherwise collection uses your provider quota.
+5. Select a planning week and click **Generate weekly recommendations**.
 
-## How it works
+Keys entered in the interface remain in server memory. Reconnect after restarting. Do not commit credentials or local runtime data.
 
-| File | Role |
-| --- | --- |
-| [web.py](wushiland/web.py) | Date form, local server, and results. |
-| [agent.py](wushiland/agent.py) | Gathers inputs, checks drafts and posting windows, retries once, fills gaps with templates, and ranks by event and seasonal fit. |
-| [llm.py](wushiland/llm.py) | Gemini JSON planning and API diagnostics. |
-| [brightdata.py](wushiland/brightdata.py) | Reads saved exports and extracts creative cues and source links. |
-| [data/](wushiland/data/) | Spring Carnival dates, public U.S. menu, and bundled Bright Data samples. |
+## What the output means
 
-The calendar adds National Tartan Day as an observance and calculates
-selected U.S. holidays. Weather and break windows are simulated. Staff
-confirm Pittsburgh availability, store hours, filming consent, and HQ approval.
+- **Candidate topics and creative drafts:** source-linked assessments and provisional ideas for existing menu products.
+- **Evergreen alternatives:** separate ideas that do not depend on a verified trend.
+- **LLM-assisted / Mixed / Templates:** indicates whether weekly scripts came from Gemini, a mixture, or fallback templates. Candidate assessments have their own status.
 
-### Use newer Bright Data exports
+The model reads captions, dates and metrics; it does not watch videos. Keyword search results are not an official trending chart. Uploaded Instagram Reel records are supported, but automatic Instagram discovery is not implemented. Weather and break windows are simulated. Staff must verify factual claims, product availability, scheduling, consent and suitability before publication.
 
-Set `WUSHILAND_BRIGHTDATA_DIR` to a directory containing `signals.json`
-or `trends.json`. In Colab, mount or upload the directory and set
-`env["WUSHILAND_BRIGHTDATA_DIR"]` before the server starts. Each request
-selects the newest eligible export per file type. Signals guide hooks and
-formats. Older references are labeled historical, and missing or unusable
-exports fall back to local formats. The app reads saved files without a
-Bright Data key. Keep keys and full exports out of Git.
+## Guides and implementation
 
-## Test
+- [START_HERE.md](START_HERE.md): detailed startup and data-source instructions.
+- [TP2_CHANGES.md](TP2_CHANGES.md): upload fields, changes and limitations.
+- [REPAIR_NOTES.md](REPAIR_NOTES.md): response-format and presentation repairs.
+- [Project scope](PROJECT_SCOPE.md): original project context.
+- [app.py](wushiland/app.py): current interactive server and collection jobs.
+- [agent.py](wushiland/agent.py): existing planning logic with evidence integration.
+- [data_sources.py](wushiland/data_sources.py): CSV/JSON import.
+- [trend_review.py](wushiland/trend_review.py): evidence assessment.
+- [llm.py](wushiland/llm.py): Gemini structured responses.
 
-Run `python -m unittest discover -s tests -v`. Tests use mocked Gemini
-responses. For a live check, run both example weeks with a Gemini key
-and review grounding, weather fit, and filmability.
+## Colab
+
+The local workflow above is the verified startup path. For Colab, clone **this integration branch**, use `wushiland.app.Handler`, and assign `Application()` to `server.app` in your port-display wrapper. The original MVP Colab snippet uses a different server and must not be copied unchanged. The integration has not been end-to-end tested through Colab's proxy.
+
+## Tests
+
+```sh
+python -m unittest discover -s tests -v
+```
+
+46 offline/mock tests passed before publication. New tests use clearly labeled synthetic records under `tests/fixtures`; these are not live trend evidence. No new live collection data or credentials were added to this integration branch. A fresh live model run requires your own API connection.
