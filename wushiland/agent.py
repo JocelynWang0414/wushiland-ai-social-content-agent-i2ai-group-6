@@ -5,6 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .brightdata import load_creative_signals
+from .trend_review import load_trend_evidence, assess_trends
 
 DATA = Path(__file__).parent / "data"
 ET = ZoneInfo("America/New_York")
@@ -115,7 +116,7 @@ def draft_brief(product, format_name, event, weather, window):
     }
 
 
-def generate(start, *, as_of=None, planner=None):
+def generate(start, *, as_of=None, planner=None, reviewer=None):
     """Gather evidence and pursue three distinct publishable candidates."""
     as_of = as_of or datetime.now(ET).date()
     end = start + DAY * 6
@@ -126,9 +127,11 @@ def generate(start, *, as_of=None, planner=None):
     catalog = load("products")
     trace = ["Read the calendar, seasonal scenario, and product catalog."]
     signals = load_creative_signals(as_of, trace)
+    trend_packet = load_trend_evidence(as_of, trace)
+    trend_reviews = assess_trends(trend_packet, catalog, reviewer, trace)
     briefs = []
     if planner:
-        briefs = model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace)
+        briefs = model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace, trend_packet, trend_reviews)
     model_count = len(briefs)
     event_options = [event for event in events if event["name"] not in
                      {"Thanksgiving", "Christmas Day", "New Year's Day", "Independence Day"}]
@@ -168,13 +171,14 @@ def generate(start, *, as_of=None, planner=None):
     mode = "LLM-assisted" if model_count == len(briefs) and model_count else "Mixed" if model_count else "Templates"
     return {"start": str(start), "end": str(end), "as_of": str(as_of), "mode": mode,
             "events": events, "weather": weather,
-            "briefs": sorted(briefs, key=lambda brief: -brief["score"]), "trace": trace}
+            "briefs": sorted(briefs, key=lambda brief: -brief["score"]), "trace": trace,
+            "trend_evidence": trend_packet, "trend_reviews": trend_reviews}
 
 
-def model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace):
+def model_briefs(planner, start, end, as_of, events, weather, catalog, signals, trace, trend_packet, trend_reviews):
     evidence = {"week": [str(start), str(end)], "planning_date": str(as_of),
                 "events": events, "weather": weather, "products": catalog,
-                "formats": list(FORMATS), "creative_signals": [
+                "formats": list(FORMATS), "trend_evidence": trend_packet, "trend_reviews": trend_reviews, "creative_signals": [
                     {key: signal[key] for key in ("id", "format", "cue")} for signal in signals]}
     approved = []
     feedback = []
@@ -183,6 +187,11 @@ def model_briefs(planner, start, end, as_of, events, weather, catalog, signals, 
             candidates = planner(evidence, feedback, [brief["format"] for brief in approved])
         except ValueError as error:
             trace.append(str(error))
+            from .llm import ResponseFormatError
+            if isinstance(error, ResponseFormatError) and attempt == 0:
+                feedback = ['Return a complete JSON object matching the supplied schema. Keep every field concise.']
+                trace.append('Retrying malformed model output once; no new collection.')
+                continue
             break
         feedback = []
         for candidate in candidates[:5]:
@@ -232,6 +241,16 @@ def validate_candidate(candidate, evidence, start, end, as_of, attempt, approved
         if signal is None:
             return None, "Use a supplied creative signal ID matching the format, or use null."
         add_reference(brief, signal)
+    trend_id = candidate.get('trend_candidate_id')
+    if trend_id is not None:
+        review = next((r for r in evidence.get('trend_reviews', []) if r['candidate_id'] == trend_id), None)
+        if not review or review['decision'] != 'adapt' or review['product'] != product['name']:
+            return None, 'Use only an eligible adapt decision with its exact reviewed product, or set trend_candidate_id to null.'
+        brief['sources'].extend(review['evidence_urls'])
+        brief['rationale'].append('Trend adaptation: ' + review['reason'])
+        brief['trend_candidate_id'] = trend_id
+    else:
+        brief['trend_candidate_id'] = None
     problems = brand_review(brief, catalog)
     if problems:
         return None, ", ".join(problems)

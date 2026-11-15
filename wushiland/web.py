@@ -6,7 +6,68 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 from .agent import ET, generate
-from .llm import plan
+from .llm import plan, review_trends
+
+
+def render_trend_reviews(result):
+    packet = result.get('trend_evidence', {})
+    reviews = result.get('trend_reviews', [])
+    header = ('<section><h2>Candidate topics & creative drafts</h2>'
+              f"<p>Saved snapshot: {escape(str(packet.get('snapshot_at', 'Unavailable')))}. "
+              f"{packet.get('evidence_count', 0)} source videos; {len(reviews)} candidates assessed. "
+              f"Discovery method: {escape(str(packet.get('discovery_method','keyword-search sample')))}. "
+              'Not an independently verified platform-wide trending chart. '
+              'Popularity and local audience fit remain unverified.</p>')
+    if not reviews:
+        return header + '<p>No complete eligible trend evidence. Briefs below use evergreen/local context.</p></section>'
+    shown_urls = set()
+    reviews = sorted(reviews, key=lambda r: bool(r.get('creative_draft')), reverse=True)
+    for r in reviews:
+        urls = set(r.get('evidence_urls', []))
+        duplicate = bool(urls and urls <= shown_urls)
+        compact = duplicate or not r.get('creative_draft')
+        if not duplicate:
+            shown_urls.update(urls)
+        title = str(r['label'])
+        if title.isdigit():
+            title = 'Audio-based candidate'
+        if compact:
+            header += '<details><summary>' + escape(title) + (' — shared video evidence' if duplicate else ' — assessment details') + '</summary>'
+        label = {'adapt': 'Adapt — staff approval required', 'watch': 'Watch — not approved as a trend', 'reject': 'Do not use'}[r['decision']]
+        header += f"<article><h3>{escape(title)}</h3><p><strong>{label}</strong> · {escape(r['review_mode'])}</p>"
+        evidence_label='Multi-creator evidence in this sample; not platform-wide verification' if r.get('evidence_level')=='multi_creator_sample' else 'Candidate inspiration — insufficient trend evidence'
+        header += f'<p><strong>Evidence level:</strong> {evidence_label}</p>'
+        header += '<p><small>Metadata-based assessment: descriptions of the source are unverified until the video is reviewed.</small></p>'
+        header += f"<p>{escape(r['reason'])}</p>"
+        if r.get('product'):
+            header += f"<p>Existing product: {escape(r['product'])}</p>"
+        if r.get('adaptation_concept'):
+            header += f"<p><strong>Provisional idea:</strong> {escape(r['adaptation_concept'])}</p>"
+        draft = r.get('creative_draft')
+        if draft:
+            header += ('<section><h4>Trend-inspired draft — pending staff review</h4>'
+                       '<p>Source: Gemini metadata analysis. The model has not watched the video. '
+                       'This proposed shoot is not evidence of a verified trend.</p>'
+                       f"<p><strong>Connection to source:</strong> {escape(draft['source_basis'])}</p>"
+                       f"<p><strong>Hook:</strong> {escape(draft['hook'])}</p>"
+                       f"<h4>Proposed script</h4>{items(draft['script'])}"
+                       f"<h4>Proposed shots</h4>{items(draft['shots'])}</section>")
+        if r.get('validation_errors'):
+            header += '<details><summary>Model response validation</summary>' + items(r['validation_errors']) + '</details>'
+        header += f"<p><strong>Next step:</strong> {escape(r['next_step'])}</p>"
+        if r['blockers']:
+            header += '<details><summary>Evidence checks</summary>' + items(r['blockers']) + '</details>'
+        header += '<details><summary>Original videos and metrics</summary><ul>'
+        for e in r['evidence']:
+            m = e['metrics']
+            metrics = ', '.join(f"{k}: {v if v is not None else 'unavailable'}" for k,v in m.items())
+            header += (f'<li><a href="{escape(e["source_url"], quote=True)}">Open original video</a> '
+                       f'· Published {escape(e["published_at"])} · Observed {escape(e["observed_at"])}'
+                       f'<p>{escape(metrics)}</p><p>Platform: {escape(str(e.get("platform","unknown")))}. {escape(str(e.get("source_note","")))}</p></li>')
+        header += '</ul></details></article>'
+        if compact:
+            header += '</details>'
+    return header + '<details><summary>Sampling limitations</summary>' + items(packet.get('limitations', [])) + '</details></section>'
 
 
 def items(values):
@@ -24,6 +85,12 @@ def render(start="", result=None, error=""):
             f" · {weather['audience']}</p><p><strong>Calendar</strong> · {escape(events)}</p>"
             f"<p><strong>Drafting mode</strong> · {result['mode']}</p>"
         )
+        if result['mode'] == 'Templates':
+            cards += '<p role="alert">Weekly scripts use fallback templates, not a successful AI drafting result. Candidate assessments below have their own status.</p>'
+        cards += render_trend_reviews(result)
+        if not any(b.get('trend_candidate_id') for b in result['briefs']):
+            cards += ('<h2>Evergreen alternatives</h2><p>None of the briefs below adopts a verified trend. '
+                      'Review the provisional trend-inspired ideas above separately.</p>')
         for index, brief in enumerate(result["briefs"], 1):
             posting = datetime.fromisoformat(brief["posting_time"]).strftime("%a %b %d, %I:%M %p ET")
             sources = "".join(f'<li><a href="{escape(source, quote=True)}">{escape(source)}</a></li>'
@@ -89,7 +156,8 @@ class Handler(BaseHTTPRequestHandler):
         start = form.get("start", [""])[0]
         try:
             week = date.fromisoformat(start)
-            result = generate(week, planner=plan if os.getenv("GEMINI_API_KEY", "").strip() else None)
+            has_key = bool(os.getenv("GEMINI_API_KEY", "").strip())
+            result = generate(week, planner=plan if has_key else None, reviewer=review_trends if has_key else None)
         except (ValueError, OverflowError) as error:
             self.reply(render(start, error=str(error)), 400)
             return

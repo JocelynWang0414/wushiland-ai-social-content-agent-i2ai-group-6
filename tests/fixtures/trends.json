@@ -1,0 +1,299 @@
+{
+  "mode": "live",
+  "generated_at": "2026-11-13T12:00:00Z",
+  "evidence": [
+    {
+      "source_url": "https://www.tiktok.com/@synthetic0/video/100000/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic0",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic1/video/100001/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic1",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic2/video/100002/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic2",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic3/video/100003/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic3",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic4/video/100004/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic4",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic5/video/100005/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic5",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic6/video/100006/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic6",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic7/video/100007/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic7",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic8/video/100008/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic8",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic9/video/100009/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic9",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic10/video/100010/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic10",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    },
+    {
+      "source_url": "https://www.tiktok.com/@synthetic11/video/100011/",
+      "platform": "tiktok",
+      "provider": "bright_data",
+      "is_fixture": false,
+      "title": "SYNTHETIC TEST RECORD",
+      "description": "Synthetic test metadata; not a real collected video.",
+      "creator": "@synthetic11",
+      "published_at": "2026-11-12T12:00:00Z",
+      "observed_at": "2026-11-13T12:00:00Z",
+      "duration_seconds": 15,
+      "metrics": {
+        "plays": 1000,
+        "likes": 10
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "id": "test-0",
+      "kind": "hashtag",
+      "label": "test-topic-0",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic0/video/100000/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-1",
+      "kind": "hashtag",
+      "label": "test-topic-1",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic1/video/100001/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-2",
+      "kind": "hashtag",
+      "label": "test-topic-2",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic2/video/100002/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-3",
+      "kind": "hashtag",
+      "label": "test-topic-3",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic3/video/100003/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-4",
+      "kind": "hashtag",
+      "label": "test-topic-4",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic4/video/100004/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-5",
+      "kind": "hashtag",
+      "label": "test-topic-5",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic5/video/100005/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-6",
+      "kind": "hashtag",
+      "label": "test-topic-6",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic6/video/100006/"
+      ],
+      "content_format_requires_video_review": true
+    },
+    {
+      "id": "test-7",
+      "kind": "hashtag",
+      "label": "test-topic-7",
+      "evidence_status": "watchlist_insufficient_evidence",
+      "distinct_creators": 1,
+      "total_sample_plays": 1000,
+      "evidence_urls": [
+        "https://www.tiktok.com/@synthetic7/video/100007/"
+      ],
+      "content_format_requires_video_review": true
+    }
+  ],
+  "sampling_limitations": [
+    "SYNTHETIC UNIT TEST ONLY. Live/provider flags emulate loader inputs; all records are fabricated test fixtures."
+  ]
+}

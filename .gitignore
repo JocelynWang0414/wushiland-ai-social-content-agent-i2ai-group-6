@@ -2,3 +2,8 @@ __pycache__/
 *.py[cod]
 .env*
 private-data/
+
+# Local runtime outputs and credentials
+runtime/
+.env
+.secrets/

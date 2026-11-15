@@ -1,5 +1,7 @@
 # Wushiland Weekly Briefs
 
+> **Shared TP2 integration package:** Start with [START_HERE.md](START_HERE.md) for the current upload/online application and [TP2_CHANGES.md](TP2_CHANGES.md) for changes and limitations. The repository instructions below describe the original MVP; cloning its branch does not include these unmerged package changes.
+
 Plan up to three ranked short-form videos for a Pittsburgh store week.
 [Project scope](PROJECT_SCOPE.md) · [Team board](https://github.com/users/JocelynWang0414/projects/1/views/1)
 
@@ -10,7 +12,7 @@ and open [localhost:8000](http://127.0.0.1:8000). Use Python 3.10+ with
 IANA time zone data. Install `tzdata` if Python cannot find America/New_York.
 
 Set `GEMINI_API_KEY` in the server environment for model drafting. The
-default is `gemini-3.5-flash-lite`. Override it with
+default is `gemini-3-flash-preview`. Override it with
 `WUSHILAND_GEMINI_MODEL`. Without a key, the app uses templates.
 
 ## Run in Colab

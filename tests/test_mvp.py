@@ -98,7 +98,7 @@ class GeminiAdapterTests(unittest.TestCase):
         urlopen.return_value.__enter__.return_value = io.BytesIO(json.dumps(response).encode())
         self.assertEqual(plan({}, [], []), [{"product": "Boba Milk Tea"}])
         request = urlopen.call_args.args[0]
-        self.assertTrue(request.full_url.endswith("/models/gemini-3.5-flash-lite:generateContent"))
+        self.assertTrue(request.full_url.endswith("/models/gemini-3-flash-preview:generateContent"))
         self.assertEqual(request.get_header("X-goog-api-key"), "test-key")
         self.assertEqual(json.loads(request.data)["generationConfig"]["responseMimeType"], "application/json")
 
